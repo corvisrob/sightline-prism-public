@@ -1,0 +1,56 @@
+{
+  "name": "sightline-prism",
+  "version": "0.3.0",
+  "description": "Asset Intelligence Platform - Multi-source data collection with intelligent synchronization and conflict resolution",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint . --ext .ts,.tsx",
+    "collect:aws-ec2": "tsx connectors/aws-ec2/collect.ts",
+    "collect:azure-vms": "tsx connectors/azure-vms/collect.ts",
+    "collect:crowdstrike": "tsx connectors/crowdstrike/collect.ts",
+    "collect:jira-assets": "tsx connectors/jira-assets/collect.ts",
+    "collect:agent": "python connectors/agent-cmdb/collect.py",
+    "collect:spreadsheet": "tsx connectors/spreadsheet/collect.ts",
+    "schemas:validate": "tsx schemas/metadata.ts"
+  },
+  "keywords": [
+    "asset-management",
+    "cmdb",
+    "data-collection",
+    "data-synchronization",
+    "conflict-resolution",
+    "windmill",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@azure/arm-compute": "^23.3.0",
+    "@azure/identity": "^4.13.0",
+    "axios": "^1.13.5",
+    "dotenv": "^16.4.0",
+    "js-yaml": "^4.1.1",
+    "mongodb": "^6.3.0",
+    "windmill-client": "^1.647.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.2.1",
+    "zod-validation-error": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.3.1",
+    "@typescript-eslint/parser": "^7.3.1",
+    "@vitest/coverage-v8": "^1.2.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.0.3",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.3",
+    "vitest": "^1.2.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "sheetName": "Sheet1",
+  "startRow": 2,
+  "columnMapping": {
+    "A": "id",
+    "B": "name",
+    "C": "type",
+    "D": "location",
+    "E": "owner",
+    "F": "description",
+    "G": "serialNumber",
+    "H": "manufacturer"
+  },
+  "transformers": {
+    "name": "trim",
+    "type": "lowercase",
+    "location": "trim",
+    "owner": "trim"
+  },
+  "rootKey": "assets"
+}

@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "removeComments": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "schemas/**/*",
+    "lib/**/*",
+    "app/**/*.ts",
+    "connectors/**/*.ts",
+    "windmill/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/__tests__/**"
+  ]
+}

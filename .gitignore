@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+.venv/
