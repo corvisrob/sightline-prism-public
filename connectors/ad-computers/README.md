@@ -1,24 +1,28 @@
 # AD Computers Connector
 
-Collects computer objects from Active Directory and exports them as YAML snapshots for manual transport into Prism's MongoDB.
+Collects computer objects from Active Directory and pushes snapshots to MongoDB — entirely in PowerShell, no Node.js required.
 
 ## Architecture
 
 ```
-Domain-joined Windows machine          Prism server
-┌──────────────────────────┐          ┌──────────────────────┐
-│  Collect-ADComputers.ps1 │          │  import-snapshot.ts  │
-│  (PowerShell + RSAT AD)  │──YAML──▶│  (validates + loads) │
-│                          │  file    │         │            │
-└──────────────────────────┘          │    MongoDB           │
-                                      └──────────────────────┘
+Domain-joined Windows machine
+┌──────────────────────────────────┐
+│  Collect-ADComputers.ps1         │
+│  (PowerShell + RSAT AD)          │
+│         │                        │
+│         ▼ YAML file              │
+│                                  │
+│  Push-ADSnapshot.ps1             │
+│  (PowerShell + Mdbc)             │
+│         │                        │
+│         ▼                        │
+│    MongoDB                       │
+└──────────────────────────────────┘
 ```
 
-This two-stage approach supports air-gapped or restricted networks where the AD domain controller is not accessible from the Prism server.
+Both scripts can run on the same Windows machine. If the AD machine cannot reach MongoDB directly, copy the YAML file to a machine that can and run `Push-ADSnapshot.ps1` there.
 
 ## Prerequisites
-
-### Collection machine (Windows, domain-joined)
 
 - PowerShell 5.1+ or PowerShell 7+
 - RSAT Active Directory module:
@@ -33,11 +37,10 @@ This two-stage approach supports air-gapped or restricted networks where the AD 
   ```powershell
   Install-Module powershell-yaml -Scope CurrentUser
   ```
-
-### Import machine (Prism server)
-
-- Node.js 18+
-- MongoDB connection configured in `.env`
+- `Mdbc` module (MongoDB driver for PowerShell):
+  ```powershell
+  Install-Module Mdbc -Scope CurrentUser
+  ```
 
 ## Usage
 
@@ -59,21 +62,30 @@ This two-stage approach supports air-gapped or restricted networks where the AD 
 
 Output: `ad-computers-snapshot-<timestamp>.yaml`
 
-### 2. Transport the YAML file
+### 2. Push to MongoDB
 
-Copy the YAML file to the Prism server via your preferred method (USB, file share, SCP, etc.).
+```powershell
+# Push the latest snapshot (auto-finds most recent YAML in script directory)
+.\Push-ADSnapshot.ps1
 
-### 3. Import into MongoDB
+# Push a specific file
+.\Push-ADSnapshot.ps1 -YamlPath C:\exports\ad-computers-snapshot-20260311-093000.yaml
 
-```bash
-npx tsx connectors/ad-computers/import-snapshot.ts ./ad-computers-snapshot-20260311-093000.yaml
+# Explicit connection settings
+.\Push-ADSnapshot.ps1 -MongoUri "mongodb+srv://user:pass@cluster0.example.net" -Database prism
 ```
 
-The import script:
-- Parses the YAML
-- Validates each asset against the `AssetComputer` schema
-- Creates a snapshot in the `snapshots_ad-computers` collection
-- Reports validation errors for any malformed entries
+Connection defaults:
+- `MongoUri`: `$env:MONGODB_URI` or `mongodb://localhost:27017`
+- `Database`: `$env:MONGODB_DB` or `prism`
+- `Collection`: `snapshots_ad-computers`
+
+### Collect and push in one go
+
+```powershell
+.\Collect-ADComputers.ps1 -OutputPath .\snapshot.yaml
+.\Push-ADSnapshot.ps1 -YamlPath .\snapshot.yaml
+```
 
 ## Schema Mapping
 
@@ -104,11 +116,11 @@ Recommended priority for AD data in sync rules:
 
 ## Scheduling
 
-Set up a Windows Scheduled Task to run the collection periodically:
+Set up a Windows Scheduled Task to collect and push on a schedule:
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-    -Argument '-File C:\scripts\Collect-ADComputers.ps1 -OutputPath \\share\prism\ad-snapshot.yaml'
+    -Argument '-File C:\scripts\Collect-ADComputers.ps1 -OutputPath C:\scripts\snapshot.yaml; C:\scripts\Push-ADSnapshot.ps1 -YamlPath C:\scripts\snapshot.yaml'
 $trigger = New-ScheduledTaskTrigger -Daily -At '06:00'
 Register-ScheduledTask -TaskName 'Prism-AD-Collection' -Action $action -Trigger $trigger
 ```

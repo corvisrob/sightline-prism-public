@@ -114,7 +114,7 @@ function ConvertTo-AssetComputer {
 
     # Parse OU path from DistinguishedName for location context
     $dn = $Computer.DistinguishedName
-    $ouParts = ($dn -split ',' |
+    $ouParts = @($dn -split ',' |
         Where-Object { $_ -match '^OU=' } |
         ForEach-Object { $_ -replace '^OU=', '' })
     [array]::Reverse($ouParts)
@@ -272,5 +272,5 @@ Write-Host "  - Output:     $OutputPath"
 Write-Host "  - Assets:     $($assets.Count)"
 Write-Host "  - Duration:   ${totalSeconds}s"
 Write-Host ""
-Write-Host "To import into MongoDB, copy the YAML file to a machine with access"
-Write-Host "and run:  npx tsx scripts/import-snapshot.ts $OutputPath"
+Write-Host "To push to MongoDB, run:"
+Write-Host "  .\Push-ADSnapshot.ps1 -YamlPath $OutputPath"
