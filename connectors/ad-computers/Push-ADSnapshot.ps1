@@ -89,8 +89,8 @@ if (-not $Database) {
 # ---------------------------------------------------------------------------
 
 if (-not $YamlPath) {
-    $candidates = Get-ChildItem -Path $PSScriptRoot -Filter 'ad-computers-snapshot-*.yaml' |
-        Sort-Object LastWriteTime -Descending
+    $candidates = @(Get-ChildItem -Path $PSScriptRoot -Filter 'ad-computers-snapshot-*.yaml' |
+        Sort-Object LastWriteTime -Descending)
     if ($candidates.Count -eq 0) {
         Write-Error "No snapshot YAML files found in $PSScriptRoot. Run Collect-ADComputers.ps1 first."
         exit 1
@@ -125,9 +125,9 @@ if (-not $snapshot -or $snapshot -isnot [hashtable]) {
     exit 1
 }
 
-$assets = $snapshot['data']
-if (-not $assets -or $assets -isnot [System.Collections.IList]) {
-    Write-Error 'Invalid snapshot: "data" field must be an array of assets.'
+$assets = @($snapshot['data'])
+if ($assets.Count -eq 0) {
+    Write-Error 'Invalid snapshot: "data" field is missing or empty.'
     exit 1
 }
 
