@@ -179,7 +179,7 @@ Connect-Mdbc $MongoUri $Database $Collection
 
 Write-Host "  Inserting snapshot..."
 $bsonDoc = [Mdbc.Dictionary]::new($document)
-$result = Add-MdbcData $bsonDoc -Result
+Add-MdbcData $bsonDoc
 
 $insertedId = $bsonDoc['_id']
 
