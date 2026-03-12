@@ -25,7 +25,7 @@
 .PARAMETER Database
     MongoDB database name. Defaults to $env:MONGODB_DB or 'prism'.
 
-.PARAMETER Collection
+.PARAMETER CollectionName
     MongoDB collection name. Defaults to 'snapshots_ad-computers'.
 
 .EXAMPLE
@@ -49,7 +49,7 @@ param(
 
     [string]$Database,
 
-    [string]$Collection = 'snapshots_ad-computers'
+    [string]$CollectionName = 'snapshots_ad-computers'
 )
 
 Set-StrictMode -Version Latest
@@ -115,7 +115,7 @@ Write-Host "Starting AD computers snapshot push..." -ForegroundColor Cyan
 Write-Host "  File:       $YamlPath"
 Write-Host "  MongoDB:    $($MongoUri -replace '://[^@]+@', '://***@')"
 Write-Host "  Database:   $Database"
-Write-Host "  Collection: $Collection"
+Write-Host "  Collection: $CollectionName"
 
 Write-Host "  Parsing YAML..."
 $yamlContent = Get-Content -Path $YamlPath -Raw -Encoding UTF8
@@ -175,7 +175,7 @@ if ($snapshot['metadata']) {
 # ---------------------------------------------------------------------------
 
 Write-Host "  Connecting to MongoDB..."
-Connect-Mdbc $MongoUri $Database $Collection
+Connect-Mdbc $MongoUri $Database $CollectionName
 
 Write-Host "  Inserting snapshot..."
 $bsonDoc = [Mdbc.Dictionary]::new($document)
