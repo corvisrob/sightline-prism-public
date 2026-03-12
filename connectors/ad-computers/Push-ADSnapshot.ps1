@@ -148,9 +148,9 @@ $collectionDuration = [int]((Get-Date) - $startTime).TotalMilliseconds
 
 $document = @{
     snapshotTime  = $snapshotTime
-    schemaName    = $snapshot['schemaName'] ?? 'AssetComputer'
-    schemaVersion = $snapshot['schemaVersion'] ?? 1
-    source        = $snapshot['source'] ?? 'ad-computers'
+    schemaName    = if ($snapshot['schemaName'])    { $snapshot['schemaName'] }    else { 'AssetComputer' }
+    schemaVersion = if ($snapshot['schemaVersion']) { $snapshot['schemaVersion'] } else { 1 }
+    source        = if ($snapshot['source'])        { $snapshot['source'] }        else { 'ad-computers' }
     data          = @($assets)
     metadata      = @{
         totalItems         = $assets.Count
