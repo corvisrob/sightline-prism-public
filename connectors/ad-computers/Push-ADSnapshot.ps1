@@ -37,8 +37,8 @@
     Pushes a specific snapshot file.
 
 .EXAMPLE
-    .\Push-ADSnapshot.ps1 -MongoUri "mongodb+srv://user:pass@cluster0.example.net" -Database prism
-    Pushes using an explicit connection string.
+    .\Push-ADSnapshot.ps1 -MongoUri "mongodb://<user>:<pass>@<host1>:27017,<host2>:27017,<host3>:27017/?ssl=true&replicaSet=<replica-set>&authSource=admin&appName=<app>" -Database prism
+    Pushes using an explicit Atlas replica set connection string.
 #>
 
 [CmdletBinding()]
@@ -77,6 +77,7 @@ Import-Module Mdbc -ErrorAction Stop
 # ---------------------------------------------------------------------------
 
 if (-not $MongoUri) {
+    # Atlas replica set format: mongodb://<user>:<pass>@<host1>:27017,<host2>:27017,<host3>:27017/?ssl=true&replicaSet=<name>&authSource=admin&appName=<app>
     $MongoUri = if ($env:MONGODB_URI) { $env:MONGODB_URI } else { 'mongodb://localhost:27017' }
 }
 
