@@ -1,27 +1,28 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as dotenv from 'dotenv';
+import axios from 'axios';
 import mongoInstance from '../../lib/mongo.js';
 import { createSnapshot } from '../../lib/snapshot.js';
 import { createLogger } from '../../lib/logger.js';
 import { AssetComputer } from '../../schemas/specific/asset-computer.js';
-import axios from 'axios';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const logger = createLogger('crowdstrike');
 
 /**
  * CrowdStrike Falcon Collector
- * 
- * Collects endpoint data from CrowdStrike Falcon API and normalizes to AssetComputer schema.
- * 
- * IMPORTANT: This is a stub implementation. In production, you would:
- * 1. Install axios or node-fetch for HTTP requests
- * 2. Use proper CrowdStrike API credentials (Client ID/Secret)
- * 3. Handle pagination for large endpoint sets
- * 4. Add error handling for API failures and rate limiting
- * 5. Implement OAuth token refresh logic
- * 
- * For now, this demonstrates the collection pattern with mock data.
+ *
+ * Collects endpoint data from the CrowdStrike Falcon API and normalizes it to
+ * the AssetComputer schema. Authenticates via OAuth2 client credentials, then
+ * queries device IDs and fetches device details in batches.
+ *
+ * The snapshot is written to a local JSON file first, then uploaded to MongoDB.
+ * A MongoDB failure is logged as a warning and does not fail the run, so the
+ * JSON file is always produced even when the database is unavailable.
  */
 
 interface CrowdStrikeHost {
@@ -136,9 +137,9 @@ async function fetchCrowdStrikeHosts(): Promise<CrowdStrikeHost[]> {
   
   logger.info(`Found ${deviceIds.length} devices, fetching details...`);
   
-  // Get device details in batches (API limit is 5000 per request)
+  // Get device details in batches (entities endpoint accepts max 100 IDs per request)
   const hosts: CrowdStrikeHost[] = [];
-  const batchSize = 5000;
+  const batchSize = 100;
   
   for (let i = 0; i < deviceIds.length; i += batchSize) {
     const batch = deviceIds.slice(i, i + batchSize);
@@ -242,26 +243,35 @@ function transformCrowdStrikeToAsset(host: CrowdStrikeHost): Partial<AssetComput
 }
 
 /**
+ * Write the snapshot to a timestamped JSON file under the connector's output/ dir.
+ */
+function saveSnapshotToFile(snapshot: object): string {
+  const outputDir = path.join(__dirname, 'output');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filePath = path.join(outputDir, `crowdstrike-${timestamp}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
+  return filePath;
+}
+
+/**
  * Main collection function
  */
 async function collect(): Promise<void> {
   const startTime = Date.now();
-  
+
   logger.info('🚀 Starting CrowdStrike collection...');
-  
+
   try {
-    // Connect to MongoDB
-    await mongoInstance.connect();
-    
     // Fetch CrowdStrike hosts
     logger.info('📡 Fetching CrowdStrike endpoints...');
     const hosts = await fetchCrowdStrikeHosts();
     logger.info(`Found ${hosts.length} endpoints`);
-    
+
     // Transform to normalized schema
     logger.info('🔄 Transforming to AssetComputer schema...');
     const assets = hosts.map(transformCrowdStrikeToAsset);
-    
+
     // Create snapshot
     logger.info('📸 Creating snapshot...');
     const collectionDuration = Date.now() - startTime;
@@ -272,27 +282,34 @@ async function collect(): Promise<void> {
       assets,
       { allowPartialSuccess: true, collectionDuration }
     );
-    
+
     if (!snapshotResult.success) {
       throw new Error(`Snapshot creation failed: ${snapshotResult.error}`);
     }
-    
-    // Insert to MongoDB
-    logger.info('💾 Inserting snapshot to MongoDB...');
-    const collection = mongoInstance.getCollectionForSource('crowdstrike');
-    const insertedId = await mongoInstance.insertSnapshot(collection, snapshotResult.snapshot);
-    
-    logger.info('✅ Collection complete!');
-    logger.info(`   - Snapshot ID: ${insertedId}`);
+
+    // Write JSON snapshot to disk first — always runs, even if MongoDB is down
+    const filePath = saveSnapshotToFile(snapshotResult.snapshot);
+    logger.info(`💾 Saved snapshot to ${filePath}`);
     logger.info(`   - Total items: ${snapshotResult.snapshot.metadata.totalItems}`);
     logger.info(`   - Valid items: ${snapshotResult.snapshot.metadata.validItems}`);
     logger.info(`   - Duration: ${collectionDuration}ms`);
-    
+
+    // Best-effort upload to MongoDB — a failure is logged but does not fail the run
+    try {
+      await mongoInstance.connect();
+      const collection = mongoInstance.getCollectionForSource('crowdstrike');
+      const insertedId = await mongoInstance.insertSnapshot(collection, snapshotResult.snapshot);
+      logger.info(`✅ Uploaded to MongoDB (ID: ${insertedId})`);
+    } catch (mongoError) {
+      logger.warn(`⚠️  MongoDB upload skipped: ${mongoError}`);
+    } finally {
+      await mongoInstance.disconnect();
+    }
+
+    logger.info('✅ Collection complete!');
   } catch (error) {
     logger.error(`❌ Collection failed: ${error}`);
     throw error;
-  } finally {
-    await mongoInstance.disconnect();
   }
 }
 

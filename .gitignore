@@ -22,6 +22,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Connector output data
+connectors/*/output/
+
 # Logs
 logs/
 *.log

@@ -15,6 +15,7 @@
     "collect:crowdstrike": "tsx connectors/crowdstrike/collect.ts",
     "collect:jira-assets": "tsx connectors/jira-assets/collect.ts",
     "collect:agent": "python connectors/agent-cmdb/collect.py",
+    "collect:cylance": "tsx connectors/cylance/collect.ts",
     "collect:spreadsheet": "tsx connectors/spreadsheet/collect.ts",
     "schemas:validate": "tsx schemas/metadata.ts"
   },
@@ -32,9 +33,11 @@
   "dependencies": {
     "@azure/arm-compute": "^23.3.0",
     "@azure/identity": "^4.13.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.13.5",
     "dotenv": "^16.4.0",
     "js-yaml": "^4.1.1",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^6.3.0",
     "windmill-client": "^1.647.0",
     "xlsx": "^0.18.5",

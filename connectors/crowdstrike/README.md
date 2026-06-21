@@ -4,7 +4,9 @@ Collects endpoint data from CrowdStrike Falcon API and normalizes it to the `Ass
 
 ## Configuration
 
-Set these environment variables in your `.env` file:
+The connector loads its config from a `.env` file **in this folder**
+(`connectors/crowdstrike/.env`), not the repo root. This file is gitignored —
+copy the values from the Falcon console into it:
 
 ```bash
 # MongoDB
@@ -14,6 +16,10 @@ MONGODB_DB=prism
 # CrowdStrike API
 CROWDSTRIKE_CLIENT_ID=your_client_id
 CROWDSTRIKE_CLIENT_SECRET=your_client_secret
+# Regional base URL — must match your tenant's cloud (US-1 is the default):
+#   US-2:     https://api.us-2.crowdstrike.com
+#   EU-1:     https://api.eu-1.crowdstrike.com
+#   US-GOV-1: https://api.laggar.gcw.crowdstrike.com
 CROWDSTRIKE_BASE_URL=https://api.crowdstrike.com
 ```
 
@@ -27,66 +33,26 @@ npm install
 npm run collect:crowdstrike
 ```
 
-## Production Setup
+## Output
 
-### Install HTTP Client
+Each run produces two outputs, in this order:
 
-For production use, install axios:
+1. **JSON file (always written first):** the snapshot is written to
+   `connectors/crowdstrike/output/crowdstrike-<timestamp>.json` before any
+   database call. This always succeeds, even when MongoDB is unavailable.
+2. **MongoDB upload (best effort):** the same snapshot is then inserted into the
+   `snapshots_crowdstrike` collection. If MongoDB is down, the failure is logged
+   as a warning (`MongoDB upload skipped: …`) and the run still exits successfully
+   with the JSON file intact.
 
-```bash
-npm install axios
-```
+The connector calls the real Falcon API directly — it authenticates via OAuth2
+client credentials (`/oauth2/token`), queries device IDs from
+`/devices/queries/devices/v1`, then fetches device details from
+`/devices/entities/devices/v2` in batches of **100 IDs** (the entities endpoint's
+per-request limit). `axios` is already a project dependency; no extra install is
+needed.
 
-Then update `collect.ts` to use real CrowdStrike API:
-
-```typescript
-import axios from 'axios';
-
-async function getAccessToken(): Promise<string> {
-  const response = await axios.post(
-    `${process.env.CROWDSTRIKE_BASE_URL}/oauth2/token`,
-    new URLSearchParams({
-      client_id: process.env.CROWDSTRIKE_CLIENT_ID || '',
-      client_secret: process.env.CROWDSTRIKE_CLIENT_SECRET || '',
-    }),
-    {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }
-  );
-  return response.data.access_token;
-}
-
-async function fetchCrowdStrikeHosts(): Promise<CrowdStrikeHost[]> {
-  const token = await getAccessToken();
-  const baseUrl = process.env.CROWDSTRIKE_BASE_URL;
-  
-  // Get device IDs
-  const idsResponse = await axios.get(
-    `${baseUrl}/devices/queries/devices/v1`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { limit: 5000 },
-    }
-  );
-  
-  const deviceIds = idsResponse.data.resources;
-  
-  if (deviceIds.length === 0) {
-    return [];
-  }
-  
-  // Get device details (batch up to 5000 IDs)
-  const detailsResponse = await axios.post(
-    `${baseUrl}/devices/entities/devices/v2`,
-    { ids: deviceIds },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  
-  return detailsResponse.data.resources;
-}
-```
-
-### CrowdStrike API Authentication
+## CrowdStrike API Authentication
 
 1. Create API credentials in CrowdStrike console:
    - Navigate to **Support** → **API Clients and Keys**
@@ -138,7 +104,8 @@ CrowdStrike-specific fields stored in `extendedData`:
 CrowdStrike API has rate limits:
 - 6000 requests per minute per client
 
-Implement exponential backoff for rate limit errors (HTTP 429):
+The connector already implements exponential backoff for rate-limit errors
+(HTTP 429) in `fetchWithRetry`:
 
 ```typescript
 async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {
